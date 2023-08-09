@@ -40,6 +40,17 @@ std::wstring songFile;
 std::int8_t songStatus = 0, matchScreen = 0;
 MusicDBCLS db;
 
+std::string lower_string(std::string str)
+{
+    for (int i = 0; str[i] != '\0'; i++)
+    {
+        if (str[i] >= 'A' && str[i] <= 'Z')    //checking for uppercase characters
+            str[i] = str[i] + 32;         //converting uppercase to lowercase
+    }
+    
+    return str;
+}
+
 BOOL WINAPI HookedWriteFile(HANDLE hFile, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite, LPDWORD lpNumberOfBytesWritten, LPOVERLAPPED lpOverlapped)
 {
     if (hFile == GetStdHandle(STD_OUTPUT_HANDLE))
@@ -49,7 +60,7 @@ BOOL WINAPI HookedWriteFile(HANDLE hFile, LPCVOID lpBuffer, DWORD nNumberOfBytes
         if (output.find("avs-ea3: soft id code:") != std::string::npos) {
             if (output.find("KFC") != std::string::npos) {
                 MessageBox(NULL, L"This is SDVX", L"Info", MB_ICONINFORMATION);
-                rpc_update(state, "SOUND VOLTEX EXCEED GEAR", "Booting the game", "", "", "", "", 1);
+                rpc_update(state, "SOUND VOLTEX EXCEED GEAR", "Booting the game", "sv6", "", "", "", 1);
             }
         }
         //Music Selection
@@ -60,7 +71,7 @@ BOOL WINAPI HookedWriteFile(HANDLE hFile, LPCVOID lpBuffer, DWORD nNumberOfBytes
         else if (output.find("I:Attach: out ALTERNATIVE_GAME_SCENE") != std::string::npos) {
             matchScreen = 1;
         }
-        else if (songStatus == 2 && matchScreen == 1) {
+        else if (songStatus > 0 && matchScreen == 1) {
             size_t startPos = songFile.find_first_not_of(L'0');
             size_t endPos = songFile.find(L"_");
             std::wstring musicIDw = songFile.substr(startPos, endPos - startPos);
@@ -69,12 +80,33 @@ BOOL WINAPI HookedWriteFile(HANDLE hFile, LPCVOID lpBuffer, DWORD nNumberOfBytes
             startPos = songFile.rfind(L"_") + 1;
             std::wstring diffw = songFile.substr(startPos);
             std::string diff(diffw.begin(), diffw.end());
-
             //MessageBox(NULL, musicIDw.c_str(), L"Info", MB_ICONINFORMATION);
+            std::string lvl , flvl;
+            
+            if (diff == "1n.vox") {
+                lvl = "NOV";
+                flvl = "NOVICE";
+            }
+            else if (diff == "2a.vox") {
+                lvl = "ADV";
+                flvl = "ADVANCED";
+            }
+            else if (diff == "3e.vox") {
+                lvl = "EXH";
+                flvl = "EXHAUST";
+            }
+            else if (diff == "4i.vox") {
+                lvl = "MXM";
+                flvl = "MAXIMUM";
+            }
+            else {
+                lvl = "";
+                flvl = "";
+            }
 
             MusicInfo musicInfo;
             if (db.getMusicInfoByID(stoi(musicID), musicInfo)) {
-                rpc_update(state, musicInfo.musicTitle, musicInfo.musicArtist + " [" + diff + "]", "sv6", "SOUND VOLTEX EXCEED GEAR", "", "", 1);
+                rpc_update(state, musicInfo.musicTitle, musicInfo.musicArtist + " [" + lvl + "]", "sv6", "SOUND VOLTEX EXCEED GEAR", lower_string(lvl), flvl, 1);
             }
             else {
                 rpc_update(state, "Error", "", "sv6", "SOUND VOLTEX EXCEED GEAR", "", "", 1);
@@ -115,16 +147,8 @@ BOOL WINAPI HookedReadFile(HANDLE hFile, LPVOID lpBuffer, DWORD  nNumberOfBytesT
                 // Log or process the file path
                 //MessageBox(NULL, PathFindFileName(szFileName), L"Info", MB_ICONINFORMATION);
                 LPCTSTR pszFileName = PathFindFileName(szFileName);
-                //songFile = pszFileName;
-                if (songFile == pszFileName) {
-                    songStatus += 1;
-                }
-                else {
-                    songFile = pszFileName;
-                    songStatus += 1;
-                    //songStatus = 0;
-                }
-                //OutputDebugString(szFileName);
+                songFile = pszFileName;
+                songStatus += 1;
             }
         }
     }
